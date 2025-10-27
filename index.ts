@@ -24,7 +24,7 @@ function getEnumOptionsForField(
 	schema: JSONSchema,
 	formState: Record<string, any>,
 	targetPath: string
-): string[] | number[] | null {
+): (string | number)[] | null {
 	// Navigate to the target field with proper context
 	const fieldSchema = navigateToFieldWithContext(schema, targetPath, formState);
 
@@ -218,6 +218,9 @@ function navigateToFieldWithContext(
 
 	for (let i = 0; i < pathParts.length; i++) {
 		const part = pathParts[i];
+		if (!part) {
+			return null;
+		}
 
 		if (part.type === "array") {
 			// Handle root array or nested array
@@ -226,9 +229,12 @@ function navigateToFieldWithContext(
 			}
 
 			// Get the items schema
-			current = Array.isArray(current.items)
-				? current.items[part.index]
-				: current.items;
+			const itemsSchema = current.items as JSONSchema | JSONSchema[];
+			current = (
+				Array.isArray(itemsSchema)
+					? (itemsSchema[part.index] as JSONSchema)
+					: (itemsSchema as JSONSchema)
+			) as JSONSchema;
 
 			// Update current data context to the specific array item
 			if (Array.isArray(currentData)) {
@@ -247,7 +253,7 @@ function navigateToFieldWithContext(
 				return null;
 			}
 
-			current = current.properties[part.key];
+			current = current.properties[part.key] as JSONSchema;
 			currentData = currentData?.[part.key];
 		}
 	}
@@ -289,13 +295,13 @@ function parsePath(
 /**
  * Extracts enum values from a field schema
  */
-function extractEnum(schema: JSONSchema): string[] | number[] | null {
+function extractEnum(schema: JSONSchema): (string | number)[] | null {
 	if (schema.enum) {
-		return schema.enum;
+		return schema.enum as (string | number)[];
 	}
 
 	if (schema.const !== undefined) {
-		return [schema.const];
+		return [schema.const] as (string | number)[];
 	}
 
 	return null;
